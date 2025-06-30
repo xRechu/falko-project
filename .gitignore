@@ -1,0 +1,84 @@
+# 🔒 Global .gitignore for Falko Project
+
+# Environment files (CRITICAL - NEVER COMMIT)
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.production
+**/.env.development
+**/.env.staging
+
+# BUT allow template files
+!**/.env.template
+!**/.env.production.template
+!**/.env.example
+
+# Dependencies
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+**/out/
+
+# Cache directories
+**/.cache/
+**/coverage/
+**/.nyc_output/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE/Editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database files (if using local db for testing)
+*.sqlite
+*.db
+
+# Keys and certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*.backup
+
+# Medusa.js specific
+**/medusa-db.sqlite*
+**/uploads/
+**/.medusa/
+
+# Supabase local development
+.supabase/
+
+# Security - choose if you want to include checklist
+# SECURITY_CHECKLIST.md
