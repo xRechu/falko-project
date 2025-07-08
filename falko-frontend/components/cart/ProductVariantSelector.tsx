@@ -13,13 +13,25 @@ import { ProductDetail } from '@/lib/types/product';
 interface ProductVariantSelectorProps {
   product: ProductDetail;
   className?: string;
+  selectedVariantId?: string;
+  onVariantChange?: (variantId: string) => void;
 }
 
-export function ProductVariantSelector({ product, className }: ProductVariantSelectorProps) {
+export function ProductVariantSelector({ 
+  product, 
+  className,
+  selectedVariantId: externalSelectedVariantId,
+  onVariantChange
+}: ProductVariantSelectorProps) {
   const { state, addItemToCart, updateItemQuantity, removeItemFromCart } = useCart();
   const { isVariantAvailable, getVariantQuantity } = useInventoryContext();
   const { getPriceInCurrency, formatPrice: formatPriceFromContext } = usePricesContext();
-  const [selectedVariantId, setSelectedVariantId] = useState<string>(product.variants[0]?.id || '');
+  
+  // Użyj external state jeśli dostępny, inaczej local state
+  const [localSelectedVariantId, setLocalSelectedVariantId] = useState<string>(product.variants[0]?.id || '');
+  const selectedVariantId = externalSelectedVariantId || localSelectedVariantId;
+  const setSelectedVariantId = onVariantChange || setLocalSelectedVariantId;
+  
   const [isLoading, setIsLoading] = useState(false);
 
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
@@ -69,17 +81,40 @@ export function ProductVariantSelector({ product, className }: ProductVariantSel
   });
 
   const handleAddToCart = async (qty = 1) => {
-    if (isLoading || !selectedVariantId || !isInStock) return;
+    console.log('🔄 handleAddToCart called with:', {
+      qty,
+      selectedVariantId,
+      isInStock,
+      isLoading,
+      selectedVariant: selectedVariant?.title
+    });
+    
+    if (isLoading || !selectedVariantId || !isInStock) {
+      console.log('❌ Cannot add to cart:', {
+        isLoading,
+        hasVariantId: !!selectedVariantId,
+        isInStock
+      });
+      return;
+    }
     
     setIsLoading(true);
     try {
+      console.log('📦 Adding to cart:', {
+        variantId: selectedVariantId,
+        quantity: qty,
+        productTitle: product.title
+      });
+      
       await addItemToCart(selectedVariantId, qty);
       
       toast.success('Produkt dodany do koszyka', {
         description: `${product.title} (${selectedVariant.title}) został dodany do koszyka`,
       });
+      
+      console.log('✅ Successfully added to cart');
     } catch (error) {
-      console.error('Błąd dodawania do koszyka:', error);
+      console.error('❌ Błąd dodawania do koszyka:', error);
       toast.error('Nie udało się dodać produktu do koszyka');
     } finally {
       setIsLoading(false);
@@ -122,28 +157,6 @@ export function ProductVariantSelector({ product, className }: ProductVariantSel
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Cena */}
-      <div>
-        <p className="text-3xl font-bold text-foreground">
-          {selectedPriceData ? formatPriceFromContext(selectedPriceData) : 'Brak ceny'}
-        </p>
-      </div>
-
-      {/* Status dostępności */}
-      <div className="flex items-center gap-2">
-        {isInStock ? (
-          <>
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-green-600">{stockInfo}</span>
-          </>
-        ) : (
-          <>
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-            <span className="text-sm text-red-600">{stockInfo}</span>
-          </>
-        )}
-      </div>
-
       {/* Opcje wariantów */}
       {Object.entries(optionGroups).map(([optionTitle, values]) => (
         <div key={optionTitle}>

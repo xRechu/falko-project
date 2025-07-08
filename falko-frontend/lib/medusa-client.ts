@@ -11,6 +11,12 @@ export const medusaClient = new Medusa({
   publishableApiKey: API_CONFIG.MEDUSA_PUBLISHABLE_KEY,
 });
 
+console.log('🔧 Medusa client config:', {
+  baseUrl: API_CONFIG.MEDUSA_BACKEND_URL,
+  publishableApiKey: API_CONFIG.MEDUSA_PUBLISHABLE_KEY ? API_CONFIG.MEDUSA_PUBLISHABLE_KEY.substring(0, 10) + '...' : 'NOT SET',
+  fullKey: API_CONFIG.MEDUSA_PUBLISHABLE_KEY
+});
+
 /**
  * Helper do obsługi błędów API
  */

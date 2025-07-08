@@ -50,15 +50,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
   
   return (
     <div className="bg-background min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-        <ProductPageClient product={product} />
+      {/* Hero Section */}
+      <div className="bg-gradient-to-b from-gray-50/50 to-background">
+        <div className="container mx-auto px-4 py-8 lg:py-12">
+          <ProductPageClient product={product} />
+        </div>
       </div>
       
       {/* Related Products */}
-      <RelatedProducts 
-        products={allProducts} 
-        currentProductId={product.id} 
-      />
+      <div className="bg-gradient-to-b from-background to-gray-50/30">
+        <RelatedProducts 
+          products={allProducts} 
+          currentProductId={product.id} 
+        />
+      </div>
     </div>
   );
 }

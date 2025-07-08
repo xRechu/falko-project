@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import ApiStatus from "@/components/ui/api-status";
 import { CartDrawer } from "@/components/cart/CartDrawer";
-import { Menu, X } from "lucide-react";
+import { useAuth } from "@/lib/context/auth-context";
+import { Menu, X, User, LogOut } from "lucide-react";
 
 /**
  * Główny nagłówek strony dla Falko Project
@@ -17,12 +18,18 @@ import { Menu, X } from "lucide-react";
  */
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { state, logout } = useAuth();
 
   const navigationLinks = [
     { href: "/sklep", label: "Sklep" },
     { href: "/nowosci", label: "Nowości" },
     { href: "/o-nas", label: "O Nas" },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    setIsMobileMenuOpen(false); // Zamknij mobile menu po wylogowaniu
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -37,9 +44,53 @@ export default function Header() {
                 Falko Project
               </span>
             </Link>
-            {/* Shopping Cart Icon */}
+            {/* User Auth & Shopping Cart Icons */}
             <div className="flex items-center gap-3">
               <ApiStatus />
+              
+              {/* Auth Section */}
+              {state.isAuthenticated ? (
+                <div className="flex items-center gap-2">
+                  <div className="hidden lg:flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-foreground/60" />
+                    <span className="text-foreground/80">
+                      Cześć, {state.user?.first_name || 'User'}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-foreground/60 hover:text-foreground"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden lg:inline ml-1">Wyloguj</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-foreground/60 hover:text-foreground"
+                  >
+                    <Link href="/login">
+                      <User className="h-4 w-4" />
+                      <span className="hidden lg:inline ml-1">Zaloguj</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs hidden sm:inline-flex"
+                  >
+                    <Link href="/register">Załóż konto</Link>
+                  </Button>
+                </div>
+              )}
+              
               <CartDrawer />
             </div>
           </div>
@@ -85,14 +136,42 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* Shopping Cart Icon */}
-            <CartDrawer />
+            {/* Shopping Cart Icon + Auth (Mobile) */}
+            <div className="flex items-center gap-2">
+              {/* Mobile Auth Quick Access */}
+              {state.isAuthenticated ? (
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">Wyloguj</span>
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <Link href="/login">
+                    <User className="h-4 w-4" />
+                    <span className="sr-only">Zaloguj się</span>
+                  </Link>
+                </Button>
+              )}
+              
+              <CartDrawer />
+            </div>
           </div>
 
           {/* Mobile Navigation Menu */}
           {isMobileMenuOpen && (
             <div className="border-t border-border/40 pb-4 pt-4">
               <nav className="flex flex-col space-y-4">
+                {/* Main Navigation */}
                 {navigationLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -103,6 +182,47 @@ export default function Header() {
                     {link.label}
                   </Link>
                 ))}
+                
+                {/* Auth Section - Mobile */}
+                <div className="pt-2 border-t border-border/20">
+                  {state.isAuthenticated ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <User className="h-4 w-4 text-foreground/60" />
+                        <span className="text-sm text-foreground/80">
+                          Cześć, {state.user?.first_name || 'User'}!
+                        </span>
+                      </div>
+                      <Button
+                        onClick={handleLogout}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start h-8 px-1 text-foreground/60 hover:text-foreground"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Wyloguj się
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Link
+                        href="/login"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground py-1"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <User className="h-4 w-4" />
+                        Zaloguj się
+                      </Link>
+                      <Link
+                        href="/register"
+                        className="block text-sm font-medium text-primary transition-colors hover:text-primary/80 py-1 pl-6"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Załóż konto
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </nav>
             </div>
           )}

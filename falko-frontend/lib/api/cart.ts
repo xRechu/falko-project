@@ -38,7 +38,7 @@ export async function createCart(data: CreateCartRequest = {}): Promise<ApiRespo
     
     const response = await withRetry(async () => {
       return await medusaClient.carts.create({
-        country_code: data.country_code || 'PL',
+        region_id: data.region_id || 'reg_01JZ0ACKJ42QHCZB0XFKBKNG8N' // ID regionu Polski
       });
     });
 
@@ -88,11 +88,12 @@ export async function addToCart(
       });
     });
 
-    console.log(`✅ Item added to cart ${cartId}`);
+    console.log(`✅ Item added to cart ${cartId}`, response);
     return { data: response.cart };
   } catch (error) {
     const apiError = handleApiError(error);
     console.error(`❌ addToCart error for ${cartId}:`, apiError);
+    console.error('Full error object:', error);
     return { error: apiError };
   }
 }
@@ -138,6 +139,21 @@ export async function removeFromCart(
     });
 
     console.log(`✅ Item ${lineItemId} removed from cart`);
+    console.log('Full response:', response);
+    console.log('Response keys:', Object.keys(response));
+    console.log('Response cart:', response.cart);
+    
+    // Jeśli nie ma cart w response, pobierz koszyk ponownie
+    if (!response.cart) {
+      console.log('🔄 No cart in response, fetching cart again...');
+      const cartResponse = await getCart(cartId);
+      if (cartResponse.data) {
+        return { data: cartResponse.data };
+      } else {
+        return { error: { message: 'Failed to fetch cart after removal' } };
+      }
+    }
+    
     return { data: response.cart };
   } catch (error) {
     const apiError = handleApiError(error);

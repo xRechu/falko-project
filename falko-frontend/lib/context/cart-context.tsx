@@ -258,16 +258,22 @@ export function CartProvider({ children }: CartProviderProps) {
   const removeItemFromCart = async (lineItemId: string) => {
     if (!state.cart?.id) return;
     
+    console.log('🔄 Removing item from cart:', lineItemId);
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       const response = await removeFromCart(state.cart.id, lineItemId);
+      console.log('🔄 Remove item response:', response);
+      
       if (response.data) {
+        console.log('✅ Item removed, updating cart state');
         dispatch({ type: 'SET_CART', payload: response.data });
       } else {
+        console.error('❌ No data in remove response:', response.error);
         dispatch({ type: 'SET_ERROR', payload: response.error?.message || 'Failed to remove item' });
       }
     } catch (error) {
+      console.error('❌ Exception while removing item:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to remove item' });
     }
   };

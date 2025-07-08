@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
+import ImageGallery from "@/components/products/ImageGallery";
 import { ProductDetail } from "@/lib/types/product";
 import { ProductVariantSelector } from "@/components/cart/ProductVariantSelector";
 import { useInventoryContext } from "@/lib/context/inventory-context";
 import { usePricesContext } from "@/lib/context/prices-context";
-import { Heart, Share2, Truck, Shield, RotateCcw } from "lucide-react";
+import { Heart, Share2, Truck, Shield, RotateCcw, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface ProductPageClientProps {
@@ -16,10 +16,10 @@ interface ProductPageClientProps {
 }
 
 export default function ProductPageClient({ product }: ProductPageClientProps) {
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(product.variants[0]?.id || "");
   const [quantity, setQuantity] = useState(1);
   const [isLiked, setIsLiked] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const { isVariantAvailable, getVariantQuantity } = useInventoryContext();
   const { getPriceInCurrency, formatPrice: formatPriceFromContext } = usePricesContext();
@@ -71,49 +71,10 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
       {/* Image Gallery */}
-      <div className="space-y-4">
-        {/* Main Image */}
-        <motion.div 
-          className="aspect-square overflow-hidden rounded-lg bg-gray-100"
-          layoutId="product-image"
-        >
-          <Image
-            src={product.images[selectedImageIndex]?.url || product.thumbnail || ''}
-            alt={product.title}
-            width={600}
-            height={600}
-            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-            priority
-          />
-        </motion.div>
-        
-        {/* Thumbnail Images */}
-        {product.images.length > 1 && (
-          <div className="grid grid-cols-4 gap-3">
-            {product.images.map((image, index) => (
-              <motion.div
-                key={image.id}
-                className={`aspect-square overflow-hidden rounded-lg cursor-pointer transition-all duration-200 ${
-                  selectedImageIndex === index 
-                    ? 'ring-2 ring-primary' 
-                    : 'hover:opacity-80'
-                }`}
-                onClick={() => setSelectedImageIndex(index)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Image
-                  src={image.url}
-                  alt={`${product.title} - zdjęcie ${index + 1}`}
-                  width={150}
-                  height={150}
-                  className="h-full w-full object-cover"
-                />
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ImageGallery 
+        images={product.images}
+        productTitle={product.title}
+      />
       
       {/* Product Info */}
       <div className="space-y-6">
@@ -126,68 +87,137 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
           ]}
         />
         
-        {/* Title & Subtitle */}
+        {/* Nazwa produktu */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground mb-2">
             {product.title}
           </h1>
-          {product.subtitle && (
-            <p className="text-lg text-muted-foreground mb-4">
-              {product.subtitle}
-            </p>
+        </div>
+        
+        {/* Nazwa kolekcji */}
+        {product.collection && (
+          <div className="mb-4">
+            <span className="text-lg text-muted-foreground font-medium">
+              {product.collection.title}
+            </span>
+          </div>
+        )}
+        
+        {/* Cena i dostępność */}
+        <div className="flex items-center space-x-3 mb-6">
+          {selectedPriceData && (
+            <span className="text-3xl font-bold text-foreground">
+              {new Intl.NumberFormat('pl-PL', {
+                style: 'currency',
+                currency: selectedPriceData.currency_code.toUpperCase(),
+              }).format(selectedPriceData.amount / 100)}
+            </span>
           )}
+          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+            isInStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {isInStock ? 'Dostępny' : 'Brak w magazynie'}
+          </div>
         </div>
         
         {/* Selector wariantów z ceną i zarządzaniem koszykiem */}
-        <ProductVariantSelector product={product} />
+        <ProductVariantSelector 
+          product={product} 
+          selectedVariantId={selectedVariantId}
+          onVariantChange={setSelectedVariantId}
+        />
         
-        {/* Akcje społecznościowe */}
-        <div className="flex gap-2">
+        {/* Polub i Udostępnij */}
+        <div className="flex gap-3">
           <Button 
             variant="outline" 
-            size="sm" 
+            size="sm"
             className="flex-1"
             onClick={() => setIsLiked(!isLiked)}
           >
-            <Heart className={`mr-2 h-4 w-4 ${isLiked ? 'fill-current text-red-500' : ''}`} />
-            {isLiked ? 'W ulubionych' : 'Ulubione'}
+            <Heart 
+              className={`h-4 w-4 mr-2 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} 
+            />
+            {isLiked ? 'Polubione' : 'Polub'}
           </Button>
           <Button 
             variant="outline" 
-            size="sm" 
+            size="sm"
             className="flex-1"
             onClick={handleShare}
           >
-            <Share2 className="mr-2 h-4 w-4" />
+            <Share2 className="h-4 w-4 mr-2" />
             Udostępnij
           </Button>
         </div>
         
-        {/* Features */}
-        <div className="space-y-3 border-t pt-6">
-          <div className="flex items-center gap-3 text-sm">
-            <Truck className="h-5 w-5 text-muted-foreground" />
-            <span>Darmowa dostawa od 200 zł</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <RotateCcw className="h-5 w-5 text-muted-foreground" />
-            <span>30 dni na zwrot</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Shield className="h-5 w-5 text-muted-foreground" />
-            <span>2 lata gwarancji</span>
+        {/* Features - tylko sekcja z funkcjami */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-foreground flex items-center">
+            <Info className="h-4 w-4 mr-2" />
+            Dlaczego warto wybrać Falko Project?
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50/50 hover:bg-gray-100/50 transition-colors duration-200">
+              <Truck className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm text-foreground">
+                  Darmowa dostawa
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Od 200 zł
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50/50 hover:bg-gray-100/50 transition-colors duration-200">
+              <Shield className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm text-foreground">
+                  Gwarancja jakości
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  30 dni zwrotu
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50/50 hover:bg-gray-100/50 transition-colors duration-200">
+              <RotateCcw className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm text-foreground">
+                  Łatwy zwrot
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Bez dodatkowych kosztów
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         
-        {/* Product Details */}
+        {/* Opis produktu */}
         {product.description && (
-          <div className="space-y-4 border-t pt-6">
-            <h3 className="text-lg font-semibold text-foreground">
-              Opis produktu
-            </h3>
-            <div className="prose prose-sm text-muted-foreground whitespace-pre-line">
-              {product.description}
-            </div>
+          <div className="space-y-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-between p-3 h-auto"
+              onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+            >
+              <span className="font-medium">Opis produktu</span>
+              {isDescriptionExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+            
+            {isDescriptionExpanded && (
+              <div className="p-4 bg-gray-50/50 rounded-lg">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {product.description}
+                </p>
+              </div>
+            )}
           </div>
         )}
         

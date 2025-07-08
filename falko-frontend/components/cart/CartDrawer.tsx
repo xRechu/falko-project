@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/lib/context/cart-context';
-import { ShoppingCart, X, Plus, Minus, Trash2 } from 'lucide-react';
+import { ShoppingCart, X, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ children }: CartDrawerProps) {
-  const { state, updateItemQuantity, removeItemFromCart, clearCartItems } = useCart();
+  const { state, updateItemQuantity, removeItemFromCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,21 +37,6 @@ export function CartDrawer({ children }: CartDrawerProps) {
     } catch (error) {
       console.error('Błąd aktualizacji koszyka:', error);
       toast.error('Nie udało się zaktualizować koszyka');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClearCart = async () => {
-    if (isLoading || !cart?.items.length) return;
-    
-    setIsLoading(true);
-    try {
-      await clearCartItems();
-      toast.success('Koszyk został wyczyszczony');
-    } catch (error) {
-      console.error('Błąd czyszczenia koszyka:', error);
-      toast.error('Nie udało się wyczyścić koszyka');
     } finally {
       setIsLoading(false);
     }
@@ -80,46 +65,35 @@ export function CartDrawer({ children }: CartDrawerProps) {
       <SheetTrigger asChild>
         {trigger}
       </SheetTrigger>
-      <SheetContent className="flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center justify-between">
-            <span>Koszyk ({itemCount})</span>
-            {itemCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearCart}
-                disabled={isLoading}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+      <SheetContent className="flex flex-col p-6" showCloseButton={false}>
+        <SheetHeader className="pb-4">
+          <SheetTitle>
+            Koszyk ({itemCount})
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-1">
           {cartLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : !cart || cart.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-center">
+            <div className="flex flex-col items-center justify-center h-32 text-center px-4">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Twój koszyk jest pusty</p>
+              <p className="text-muted-foreground mb-4">Twój koszyk jest pusty</p>
               <Button
                 variant="outline"
                 onClick={() => setIsOpen(false)}
-                className="mt-4"
+                className="mt-2"
               >
                 Kontynuuj zakupy
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6 py-2">
               {cart.items.map((item) => (
-                <div key={item.id} className="flex gap-3 py-4">
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                <div key={item.id} className="flex gap-4 p-4 bg-gray-50/50 rounded-lg border">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                     {item.thumbnail ? (
                       <Image
                         src={item.thumbnail}
@@ -199,9 +173,9 @@ export function CartDrawer({ children }: CartDrawerProps) {
 
         {cart && cart.items.length > 0 && (
           <>
-            <Separator />
-            <div className="space-y-4">
-              <div className="space-y-2">
+            <Separator className="my-4" />
+            <div className="space-y-6 pt-2">
+              <div className="space-y-3 px-2">
                 <div className="flex justify-between text-sm">
                   <span>Suma częściowa:</span>
                   <span>{formatPrice(cart.subtotal)}</span>
@@ -219,13 +193,13 @@ export function CartDrawer({ children }: CartDrawerProps) {
                   </div>
                 )}
                 <Separator />
-                <div className="flex justify-between font-semibold">
+                <div className="flex justify-between font-semibold text-base">
                   <span>Razem:</span>
                   <span>{formatPrice(cart.total)}</span>
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Button asChild className="w-full" size="lg">
                   <Link href="/checkout" onClick={() => setIsOpen(false)}>
                     Przejdź do kasy
