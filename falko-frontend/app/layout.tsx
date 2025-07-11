@@ -9,6 +9,9 @@ import { InventoryProvider } from "@/lib/context/inventory-context";
 import { PricesProvider } from "@/lib/context/prices-context";
 import { Toaster } from "@/components/ui/sonner";
 
+// Force import medusa-client to initialize SDK
+import '@/lib/medusa-client';
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

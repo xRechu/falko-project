@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { checkEmailAvailability } from '@/lib/api/auth';
+import { checkEmailAvailability } from '@/lib/api/auth-new';
 
 interface EmailValidationState {
   isChecking: boolean;

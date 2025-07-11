@@ -10,7 +10,7 @@
 export const API_CONFIG = {
   // Medusa.js Backend (lokalny serwer, zdalna baza)
   MEDUSA_BACKEND_URL: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9000',
-  MEDUSA_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '',
+  MEDUSA_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || 'pk_60568a3c6cc74ccc41a864308e12012e82a8a94a53d0f386295f9a7b1c4af1b7',
   
   // Strapi CMS (lokalny serwer, zdalna baza)
   STRAPI_API_URL: process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337',

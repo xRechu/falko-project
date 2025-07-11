@@ -64,11 +64,13 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Dodaj security headers w produkcji
+  // Wyłączamy security headers tymczasowo w dev
   async headers() {
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
     return [
       {
-        // Zastosuj security headers do wszystkich route
         source: '/(.*)',
         headers: securityHeaders,
       },
@@ -76,18 +78,17 @@ const nextConfig: NextConfig = {
   },
   
   // Optymalizacja dla produkcji
-  poweredByHeader: false, // Usuwa "X-Powered-By: Next.js"
+  poweredByHeader: false,
   
-  // Cache optymalizacja
-  async rewrites() {
-    return [
-      // Proxy dla API calls żeby uniknąć CORS issues
-      {
-        source: '/api/medusa/:path*',
-        destination: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/:path*`,
-      },
-    ];
-  },
+  // Wyłączamy rewrites tymczasowo - mogą powodować problemy z routingiem
+  // async rewrites() {
+  //   return [
+  //     {
+  //       source: '/api/medusa/:path*',
+  //       destination: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/:path*`,
+  //     },
+  //   ];
+  // },
 };
 
 export default nextConfig;

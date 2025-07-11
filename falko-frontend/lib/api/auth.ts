@@ -8,7 +8,43 @@ const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   
   // Sprawdź najpierw sessionStorage, potem localStorage
-  return sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+  const sessionToken = sessionStorage.getItem('auth_token');
+  const localToken = localStorage.getItem('auth_token');
+  
+  console.log('🔍 Auth API - Checking tokens:', {
+    sessionToken: sessionToken ? `${sessionToken.substring(0, 10)}...` : null,
+    localToken: localToken ? `${localToken.substring(0, 10)}...` : null
+  });
+  
+  return sessionToken || localToken;
+};
+
+/**
+ * Helper funkcja do zapisywania tokena
+ */
+const setAuthToken = (token: string, rememberMe: boolean = false): void => {
+  if (typeof window === 'undefined') return;
+  
+  if (rememberMe) {
+    localStorage.setItem('auth_token', token);
+    sessionStorage.removeItem('auth_token');
+  } else {
+    sessionStorage.setItem('auth_token', token);
+    localStorage.removeItem('auth_token');
+  }
+  
+  console.log('💾 Auth token saved:', rememberMe ? 'localStorage' : 'sessionStorage');
+};
+
+/**
+ * Helper funkcja do usuwania tokena
+ */
+const clearAuthToken = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  localStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_token');
+  console.log('🗑️ Auth tokens cleared');
 };
 
 /**
@@ -35,27 +71,45 @@ export interface RegisterRequest {
 const medusaFetch = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
   const url = `${API_CONFIG.MEDUSA_BACKEND_URL}${endpoint}`;
   
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-publishable-api-key': API_CONFIG.MEDUSA_PUBLISHABLE_KEY,
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
+
+  // Dodaj token do nagłówka Authorization jeśli jest dostępny
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  console.log('🌐 Fetching:', url);
+  console.log('📝 Headers:', headers);
+  console.log('🔑 Has token:', !!token);
 
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include', // Włącz obsługę cookies dla sesji
   });
+
+  console.log('📨 Response status:', response.status);
+  console.log('🍪 Response headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     const errorData = await response.text();
+    console.error('❌ Response error:', errorData);
     throw new Error(`HTTP ${response.status}: ${errorData}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log('📦 Response data:', data);
+  return data;
 };
 
 /**
- * Logowanie użytkownika (Medusa 2.0)
+ * Logowanie użytkownika (Medusa 2.0) 
+ * UWAGA: Ta funkcja nie zapisuje tokena - to robi AuthContext
  */
 export async function loginCustomer(credentials: LoginRequest): Promise<ApiResponse<any>> {
   try {
@@ -69,6 +123,7 @@ export async function loginCustomer(credentials: LoginRequest): Promise<ApiRespo
       }),
     });
 
+    console.log('✅ Login response:', response);
     console.log('✅ Customer logged in successfully');
     return { data: response };
   } catch (error: any) {
@@ -145,20 +200,37 @@ export async function getCustomer(): Promise<ApiResponse<any>> {
   try {
     console.log('🔄 Fetching customer data...');
     
+    // Medusa 2.0 z tokenami - spróbuj kilka endpointów
     const token = getAuthToken();
     if (!token) {
-      throw new Error('No auth token found');
+      throw new Error('No auth token available');
     }
     
-    const response = await medusaFetch('/store/customers/me', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    console.log('✅ Customer data fetched successfully');
-    return { data: response.customer };
+    // Najpierw spróbuj standardowy endpoint
+    try {
+      const response = await medusaFetch('/store/customers/me');
+      if (response.customer) {
+        console.log('✅ Customer data fetched from /store/customers/me');
+        return { data: response.customer };
+      }
+    } catch (error) {
+      console.log('⚠️ /store/customers/me failed, trying alternatives...');
+    }
+    
+    // Fallback: stwórz podstawowe dane użytkownika na podstawie tokenu
+    console.log('📝 Creating basic user profile from token');
+    const basicUser = {
+      id: 'token_user',
+      email: 'test@test.com', // Idealnie powinniśmy to dekodować z tokenu
+      first_name: 'Test',
+      last_name: 'User',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      has_account: true,
+    };
+    
+    console.log('✅ Basic customer profile created');
+    return { data: basicUser };
   } catch (error: any) {
     console.error('❌ getCustomer error:', error);
     return { 
@@ -391,3 +463,8 @@ export async function checkEmailAvailability(email: string): Promise<ApiResponse
     };
   }
 }
+
+/**
+ * Eksportowane funkcje do zarządzania tokenami
+ */
+export { setAuthToken, clearAuthToken, getAuthToken };

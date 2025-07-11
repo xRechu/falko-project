@@ -1,9 +1,10 @@
-import { medusaClient, handleApiError, withRetry } from '@/lib/medusa-client';
+import { sdk, TokenManager, handleApiError, withRetry } from '@/lib/medusa-client';
 import { ApiResponse } from './products';
+import type { HttpTypes } from "@medusajs/types";
 
 /**
- * API functions dla zarządzania koszykiem w Medusa.js
- * Używamy typów z @medusajs/medusa-js dla kompatybilności
+ * API functions dla zarządzania koszykiem w Medusa.js 2.0 JS SDK
+ * Używamy typów z @medusajs/types dla kompatybilności
  */
 
 // Podstawowe typy requesta
@@ -37,7 +38,7 @@ export async function createCart(data: CreateCartRequest = {}): Promise<ApiRespo
     console.log('🔄 Creating new cart...');
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.create({
+      return await sdk.store.cart.create({
         region_id: data.region_id || 'reg_01JZ0ACKJ42QHCZB0XFKBKNG8N' // ID regionu Polski
       });
     });
@@ -59,7 +60,7 @@ export async function getCart(cartId: string): Promise<ApiResponse<any>> {
     console.log(`🔄 Fetching cart ${cartId}...`);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.retrieve(cartId);
+      return await sdk.store.cart.retrieve(cartId);
     });
 
     console.log(`✅ Cart ${cartId} fetched successfully`);
@@ -82,7 +83,7 @@ export async function addToCart(
     console.log(`🔄 Adding item to cart ${cartId}:`, item);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.lineItems.create(cartId, {
+      return await sdk.store.cart.createLineItem(cartId, {
         variant_id: item.variant_id,
         quantity: item.quantity,
       });
@@ -110,7 +111,7 @@ export async function updateCartItem(
     console.log(`🔄 Updating cart item ${lineItemId} in cart ${cartId}:`, data);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.lineItems.update(cartId, lineItemId, {
+      return await sdk.store.cart.updateLineItem(cartId, lineItemId, {
         quantity: data.quantity,
       });
     });
@@ -135,26 +136,21 @@ export async function removeFromCart(
     console.log(`🔄 Removing item ${lineItemId} from cart ${cartId}...`);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.lineItems.delete(cartId, lineItemId);
+      return await sdk.store.cart.deleteLineItem(cartId, lineItemId);
     });
 
     console.log(`✅ Item ${lineItemId} removed from cart`);
     console.log('Full response:', response);
     console.log('Response keys:', Object.keys(response));
-    console.log('Response cart:', response.cart);
     
-    // Jeśli nie ma cart w response, pobierz koszyk ponownie
-    if (!response.cart) {
-      console.log('🔄 No cart in response, fetching cart again...');
-      const cartResponse = await getCart(cartId);
-      if (cartResponse.data) {
-        return { data: cartResponse.data };
-      } else {
-        return { error: { message: 'Failed to fetch cart after removal' } };
-      }
+    // DeleteLineItem zwraca pustą odpowiedź, pobierz koszyk ponownie
+    console.log('🔄 Fetching cart after removal...');
+    const cartResponse = await getCart(cartId);
+    if (cartResponse.data) {
+      return { data: cartResponse.data };
+    } else {
+      return { error: { message: 'Failed to fetch cart after removal' } };
     }
-    
-    return { data: response.cart };
   } catch (error) {
     const apiError = handleApiError(error);
     console.error(`❌ removeFromCart error for ${lineItemId}:`, apiError);
@@ -204,7 +200,7 @@ export async function setCartEmail(
     console.log(`🔄 Setting email for cart ${cartId}: ${email}`);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.update(cartId, {
+      return await sdk.store.cart.update(cartId, {
         email,
       });
     });
@@ -229,7 +225,7 @@ export async function setCartRegion(
     console.log(`🔄 Setting region for cart ${cartId}: ${regionId}`);
     
     const response = await withRetry(async () => {
-      return await medusaClient.carts.update(cartId, {
+      return await sdk.store.cart.update(cartId, {
         region_id: regionId,
       });
     });
@@ -251,7 +247,7 @@ export async function getRegions(): Promise<ApiResponse<any[]>> {
     console.log('🔄 Fetching regions...');
     
     const response = await withRetry(async () => {
-      return await medusaClient.regions.list();
+      return await sdk.store.region.list();
     });
 
     console.log(`✅ Fetched ${response.regions.length} regions`);

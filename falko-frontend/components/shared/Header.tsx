@@ -58,6 +58,17 @@ export default function Header() {
                     </span>
                   </div>
                   <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-foreground/60 hover:text-foreground"
+                  >
+                    <Link href="/konto">
+                      <User className="h-4 w-4" />
+                      <span className="hidden lg:inline ml-1">Moje konto</span>
+                    </Link>
+                  </Button>
+                  <Button
                     onClick={handleLogout}
                     variant="ghost"
                     size="sm"
@@ -140,15 +151,28 @@ export default function Header() {
             <div className="flex items-center gap-2">
               {/* Mobile Auth Quick Access */}
               {state.isAuthenticated ? (
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="sr-only">Wyloguj</span>
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <Link href="/konto">
+                      <User className="h-4 w-4" />
+                      <span className="sr-only">Moje konto</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="sr-only">Wyloguj</span>
+                  </Button>
+                </div>
               ) : (
                 <Button
                   asChild
@@ -193,6 +217,14 @@ export default function Header() {
                           Cześć, {state.user?.first_name || 'User'}!
                         </span>
                       </div>
+                      <Link
+                        href="/konto"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground py-1"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <User className="h-4 w-4" />
+                        Moje konto
+                      </Link>
                       <Button
                         onClick={handleLogout}
                         variant="ghost"

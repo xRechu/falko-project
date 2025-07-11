@@ -81,3 +81,4 @@ Jaki jest Twój wybór? Mogę od razu zacząć implementację wybranego obszaru!
 aceternity ui - navbar ciekawy. 
 Placeholders And Vanish Input
 Signup Form
+lens do bluzy jako podglad

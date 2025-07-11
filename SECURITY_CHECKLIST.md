@@ -23,7 +23,7 @@ REDIS_URL=rediss://...  # SSL connection
 ### 2. Custom Endpoints Security
 - ✅ `/store/inventory` - tylko odczyt, OK
 - ✅ `/store/prices` - tylko odczyt, OK  
-- ⚠️ Dodaj rate limiting jeśli potrzeba
+- ✅ Rate limiting dodany do auth endpoints (login/register)
 - ⚠️ Rozważ cache'owanie wyników (Redis)
 
 ### 3. Database Security
@@ -112,11 +112,10 @@ const securityHeaders = [
 **Główne ryzyka:**
 1. Słabe hasła w JWT/Cookie secrets
 2. Rozwojowe CORS ustawienia
-3. Brak rate limiting
-4. Brak monitoring
+3. Brak monitoring
 
 **Priorytet poprawek:**
 1. **HIGH**: Zmiana JWT_SECRET, COOKIE_SECRET
 2. **HIGH**: Aktualizacja CORS 
 3. **MEDIUM**: Dodanie security headers
-4. **LOW**: Rate limiting, monitoring
+4. **LOW**: Monitoring
