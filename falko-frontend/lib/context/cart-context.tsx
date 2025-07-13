@@ -17,7 +17,11 @@ export interface CartItem {
   thumbnail?: string;
   unit_price: number;
   quantity: number;
-  total: number;
+  total?: number; // Opcjonalne w Medusa 2.0
+  // Dodane pola z Medusa 2.0 API
+  product_title?: string;
+  variant_title?: string;
+  variant_sku?: string;
   variant?: {
     id: string;
     title: string;

@@ -15,9 +15,14 @@ interface OrderSummaryProps {
       thumbnail?: string;
       quantity: number;
       unit_price: number;
-      total: number;
+      total?: number;
+      variant_title?: string;
       variant?: {
         title: string;
+        options?: Array<{
+          value: string;
+          option: { title: string };
+        }>;
       };
     }>;
     subtotal: number;
@@ -79,9 +84,20 @@ export function OrderSummary({ cart }: OrderSummaryProps) {
                   <h4 className="font-medium text-sm truncate">
                     {item.title}
                   </h4>
-                  {item.variant?.title && (
+                  {/* Wyświetl opcje wariantów jako osobne linie */}
+                  {item.variant?.options && item.variant.options.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {item.variant.options.map((opt, idx) => (
+                        <p key={idx} className="text-xs text-gray-500">
+                          {opt.option?.title}: {opt.value}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {/* Fallback dla variant_title jeśli nie ma options */}
+                  {(!item.variant?.options || item.variant.options.length === 0) && (item.variant?.title || item.variant_title) && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {item.variant.title}
+                      {item.variant_title || item.variant?.title}
                     </p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
@@ -94,7 +110,7 @@ export function OrderSummary({ cart }: OrderSummaryProps) {
                   </div>
                 </div>
                 <p className="text-sm font-medium">
-                  {formatPrice(item.total)}
+                  {formatPrice(item.total || (item.unit_price * item.quantity))}
                 </p>
               </div>
             </div>

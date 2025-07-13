@@ -1,13 +1,13 @@
 import { sdk } from '@/lib/medusa-client';
 import { ApiResponse } from './products';
-import { Customer, updateCustomer } from './auth-new';
+import { Customer, updateCustomer } from './auth'; // Zmienione z auth-new na auth
 
 /**
  * API functions dla zarządzania profilem użytkownika w Medusa.js 2.0 JS SDK
  * Customer profile, password management
  */
 
-// Używamy typu Customer z auth-new.ts 
+// Używamy typu Customer z auth.ts 
 export type CustomerProfile = Customer;
 
 export interface UpdateProfileRequest {
@@ -50,7 +50,7 @@ export async function updateCustomerProfile(updates: UpdateProfileRequest): Prom
   try {
     console.log('🔄 [JS SDK] Updating customer profile...', updates);
     
-    // Używamy funkcji z auth-new.ts która już używa JS SDK
+    // Używamy funkcji z auth.ts która już używa JS SDK
     return await updateCustomer(updates);
   } catch (error: any) {
     console.error('❌ [JS SDK] updateCustomerProfile error:', error);

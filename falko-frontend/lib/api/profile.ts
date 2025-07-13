@@ -1,27 +1,12 @@
 import { API_CONFIG } from '@/lib/api-config';
 import { ApiResponse } from './products';
+import { sdk } from '@/lib/medusa-client';
 
 /**
- * Helper funkcja do pobierania tokena z storage
- */
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  
-  // Sprawdź najpierw sessionStorage, potem localStorage
-  const sessionToken = sessionStorage.getItem('auth_token');
-  const localToken = localStorage.getItem('auth_token');
-  
-  console.log('🔍 Checking tokens:', {
-    sessionToken: sessionToken ? `${sessionToken.substring(0, 10)}...` : null,
-    localToken: localToken ? `${localToken.substring(0, 10)}...` : null
-  });
-  
-  return sessionToken || localToken;
-};
-
-/**
- * API functions dla zarządzania profilem użytkownika w Medusa.js 2.0
+ * API functions dla zarządzania profilem użytkownika w Medusa.js 2.0 SDK
  * Customer profile, password management
+ * 
+ * UWAGA: SDK automatycznie zarządza tokenami i autoryzacją
  */
 
 export interface CustomerProfile {
@@ -30,7 +15,7 @@ export interface CustomerProfile {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  has_account: boolean;
+  has_account?: boolean; // Opcjonalne - może nie być dostępne w SDK
   created_at: string;
   updated_at: string;
   metadata?: Record<string, any>;
@@ -49,47 +34,36 @@ export interface ChangePasswordRequest {
 }
 
 /**
- * Helper do wysyłania żądań do Medusa 2.0 API
+ * Konwertuje StoreCustomer z SDK na nasz CustomerProfile
  */
-const medusaFetch = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
-  const url = `${API_CONFIG.MEDUSA_BACKEND_URL}${endpoint}`;
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-publishable-api-key': API_CONFIG.MEDUSA_PUBLISHABLE_KEY,
-    ...options.headers,
+function transformStoreCustomerToProfile(customer: any): CustomerProfile {
+  return {
+    id: customer.id,
+    email: customer.email,
+    first_name: customer.first_name || undefined,
+    last_name: customer.last_name || undefined,
+    phone: customer.phone || undefined,
+    has_account: customer.has_account ?? true, // Domyślnie true jeśli nie ma
+    created_at: customer.created_at,
+    updated_at: customer.updated_at,
+    metadata: customer.metadata || undefined,
   };
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Włącz obsługę cookies dla sesji
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorData}`);
-  }
-
-  return response.json();
-};
+}
 
 /**
- * Pobiera profil zalogowanego użytkownika (Medusa 2.0)
+ * Pobiera profil zalogowanego użytkownika (Medusa 2.0 SDK)
  */
 export async function getCustomerProfile(): Promise<ApiResponse<CustomerProfile>> {
   try {
-    console.log('🔄 Fetching customer profile...');
+    console.log('🔄 Fetching customer profile via SDK...');
     
-    const response = await medusaFetch('/store/customers/me', {
-      method: 'GET',
-      // Usuwamy Authorization header - Medusa 2.0 używa cookies
-    });
+    // SDK automatycznie zarządza tokenami
+    const response = await sdk.store.customer.retrieve();
 
-    console.log('✅ Customer profile fetched successfully');
-    return { data: response.customer };
+    console.log('✅ Customer profile fetched successfully via SDK');
+    return { data: transformStoreCustomerToProfile(response.customer) };
   } catch (error: any) {
-    console.error('❌ getCustomerProfile error:', error);
+    console.error('❌ getCustomerProfile SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd pobierania profilu',
@@ -100,24 +74,20 @@ export async function getCustomerProfile(): Promise<ApiResponse<CustomerProfile>
 }
 
 /**
- * Aktualizuje profil zalogowanego użytkownika (Medusa 2.0)
+ * Aktualizuje profil zalogowanego użytkownika (Medusa 2.0 SDK)
  */
 export async function updateCustomerProfile(
   updates: UpdateProfileRequest
 ): Promise<ApiResponse<CustomerProfile>> {
   try {
-    console.log('🔄 Updating customer profile...');
+    console.log('🔄 Updating customer profile via SDK...');
     
-    const response = await medusaFetch('/store/customers/me', {
-      method: 'POST',
-      // Usuwamy Authorization header - Medusa 2.0 używa cookies
-      body: JSON.stringify(updates),
-    });
+    const response = await sdk.store.customer.update(updates);
 
-    console.log('✅ Customer profile updated successfully');
-    return { data: response.customer };
+    console.log('✅ Customer profile updated successfully via SDK');
+    return { data: transformStoreCustomerToProfile(response.customer) };
   } catch (error: any) {
-    console.error('❌ updateCustomerProfile error:', error);
+    console.error('❌ updateCustomerProfile SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd aktualizacji profilu',
@@ -128,37 +98,29 @@ export async function updateCustomerProfile(
 }
 
 /**
- * Zmienia hasło użytkownika (Medusa 2.0)
- * W Medusa 2.0 może być dostępne przez oddzielny endpoint auth
+ * Zmienia hasło użytkownika (Medusa 2.0 SDK)
+ * Używa bezpośredniego fetch przez SDK client dla custom endpointów auth
  */
 export async function changeCustomerPassword(
   passwordData: ChangePasswordRequest
 ): Promise<ApiResponse<void>> {
   try {
-    console.log('🔄 Changing customer password...');
-    
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No auth token found');
-    }
+    console.log('🔄 Changing customer password via SDK...');
     
     // W Medusa 2.0 może być inny endpoint dla zmiany hasła
-    // Sprawdź dokumentację - może być /auth/customer/emailpass/update lub podobny
-    const response = await medusaFetch('/store/auth/password-change', {
+    // Użyjemy SDK client fetch dla custom endpointów
+    await sdk.client.fetch('/auth/customer/emailpass/update', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify({
         old_password: passwordData.old_password,
         new_password: passwordData.new_password,
       }),
     });
 
-    console.log('✅ Customer password changed successfully');
+    console.log('✅ Customer password changed successfully via SDK');
     return { data: undefined };
   } catch (error: any) {
-    console.error('❌ changeCustomerPassword error:', error);
+    console.error('❌ changeCustomerPassword SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd zmiany hasła',

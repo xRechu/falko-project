@@ -60,7 +60,9 @@ export async function getCart(cartId: string): Promise<ApiResponse<any>> {
     console.log(`🔄 Fetching cart ${cartId}...`);
     
     const response = await withRetry(async () => {
-      return await sdk.store.cart.retrieve(cartId);
+      return await sdk.store.cart.retrieve(cartId, {
+        fields: '*items,*items.variant,*items.variant.options,*items.variant.options.option,*items.product'
+      });
     });
 
     console.log(`✅ Cart ${cartId} fetched successfully`);
@@ -83,9 +85,14 @@ export async function addToCart(
     console.log(`🔄 Adding item to cart ${cartId}:`, item);
     
     const response = await withRetry(async () => {
-      return await sdk.store.cart.createLineItem(cartId, {
+      const addResponse = await sdk.store.cart.createLineItem(cartId, {
         variant_id: item.variant_id,
         quantity: item.quantity,
+      });
+      
+      // Po dodaniu, pobierz koszyk ponownie z rozszerzonymi polami
+      return await sdk.store.cart.retrieve(cartId, {
+        fields: '*items,*items.variant,*items.variant.options,*items.variant.options.option,*items.product'
       });
     });
 
@@ -111,8 +118,13 @@ export async function updateCartItem(
     console.log(`🔄 Updating cart item ${lineItemId} in cart ${cartId}:`, data);
     
     const response = await withRetry(async () => {
-      return await sdk.store.cart.updateLineItem(cartId, lineItemId, {
+      await sdk.store.cart.updateLineItem(cartId, lineItemId, {
         quantity: data.quantity,
+      });
+      
+      // Po aktualizacji, pobierz koszyk ponownie z rozszerzonymi polami
+      return await sdk.store.cart.retrieve(cartId, {
+        fields: '*items,*items.variant,*items.variant.options,*items.variant.options.option,*items.product'
       });
     });
 

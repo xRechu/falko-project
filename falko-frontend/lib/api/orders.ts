@@ -1,10 +1,12 @@
 import { API_CONFIG } from '@/lib/api-config';
 import { ApiResponse } from './products';
-import { getAuthToken } from './auth';
+import { sdk } from '@/lib/medusa-client';
 
 /**
- * API functions dla zarządzania zamówieniami użytkownika w Medusa.js 2.0
+ * API functions dla zarządzania zamówieniami użytkownika w Medusa.js 2.0 SDK
  * Orders, order history, order details
+ * 
+ * UWAGA: SDK automatycznie zarządza tokenami i autoryzacją
  */
 
 export interface OrderItem {
@@ -53,66 +55,87 @@ export interface Order {
 }
 
 /**
- * Helper do wysyłania żądań do Medusa 2.0 API
+ * Transformuje StoreOrder z SDK na nasz Order interface
  */
-const medusaFetch = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
-  const url = `${API_CONFIG.MEDUSA_BACKEND_URL}${endpoint}`;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-publishable-api-key': API_CONFIG.MEDUSA_PUBLISHABLE_KEY,
-    ...(options.headers as Record<string, string>),
+function transformStoreOrderToOrder(storeOrder: any): Order {
+  return {
+    id: storeOrder.id,
+    display_id: storeOrder.display_id || 0,
+    status: storeOrder.status,
+    fulfillment_status: storeOrder.fulfillment_status || 'not_fulfilled',
+    payment_status: storeOrder.payment_status || 'not_paid',
+    total: storeOrder.total || 0,
+    subtotal: storeOrder.subtotal || 0,
+    tax_total: storeOrder.tax_total || 0,
+    shipping_total: storeOrder.shipping_total || 0,
+    currency_code: storeOrder.currency_code || 'PLN',
+    created_at: storeOrder.created_at,
+    updated_at: storeOrder.updated_at,
+    email: storeOrder.email || '',
+    customer_id: storeOrder.customer_id || undefined,
+    items: storeOrder.items?.map((item: any) => ({
+      id: item.id,
+      product_id: item.product_id || '',
+      product_title: item.product_title || item.title || '',
+      product_handle: item.product?.handle || '',
+      variant_id: item.variant_id || undefined,
+      variant_title: item.variant_title || item.variant?.title || undefined,
+      quantity: item.quantity || 0,
+      unit_price: item.unit_price || 0,
+      total: item.total || 0,
+      thumbnail: item.product?.thumbnail || item.variant?.product?.thumbnail || undefined,
+    })) || [],
+    shipping_address: storeOrder.shipping_address ? {
+      first_name: storeOrder.shipping_address.first_name || '',
+      last_name: storeOrder.shipping_address.last_name || '',
+      company: storeOrder.shipping_address.company || undefined,
+      address_1: storeOrder.shipping_address.address_1 || '',
+      address_2: storeOrder.shipping_address.address_2 || undefined,
+      city: storeOrder.shipping_address.city || '',
+      postal_code: storeOrder.shipping_address.postal_code || '',
+      country_code: storeOrder.shipping_address.country_code || '',
+      phone: storeOrder.shipping_address.phone || undefined,
+    } : undefined,
+    billing_address: storeOrder.billing_address ? {
+      first_name: storeOrder.billing_address.first_name || '',
+      last_name: storeOrder.billing_address.last_name || '',
+      company: storeOrder.billing_address.company || undefined,
+      address_1: storeOrder.billing_address.address_1 || '',
+      address_2: storeOrder.billing_address.address_2 || undefined,
+      city: storeOrder.billing_address.city || '',
+      postal_code: storeOrder.billing_address.postal_code || '',
+      country_code: storeOrder.billing_address.country_code || '',
+      phone: storeOrder.billing_address.phone || undefined,
+    } : undefined,
   };
-
-  // Dodaj token do nagłówka Authorization jeśli jest dostępny
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Włącz obsługę cookies dla sesji
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorData}`);
-  }
-
-  return response.json();
-};
+}
 
 /**
- * Pobiera listę zamówień dla zalogowanego użytkownika (Medusa 2.0)
+ * Pobiera listę zamówień dla zalogowanego użytkownika (Medusa 2.0 SDK)
  */
 export async function getCustomerOrders(
   limit: number = 20,
   offset: number = 0
 ): Promise<ApiResponse<{ orders: Order[]; count: number }>> {
   try {
-    console.log('🔄 Fetching customer orders...');
+    console.log('🔄 Fetching customer orders via SDK...');
     
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      offset: offset.toString(),
-      expand: 'items,shipping_address,billing_address,payments,fulfillments',
-    });
-    
-    const response = await medusaFetch(`/store/customers/me/orders?${params}`, {
-      method: 'GET',
+    // SDK automatycznie zarządza tokenami i rozszerza pola
+    const response = await sdk.store.order.list({
+      limit,
+      offset,
+      fields: '*shipping_address,*billing_address,*items,*payments',
     });
 
-    console.log('✅ Customer orders fetched successfully');
+    console.log('✅ Customer orders fetched successfully via SDK');
     return { 
       data: { 
-        orders: response.orders || [], 
+        orders: response.orders?.map(transformStoreOrderToOrder) || [], 
         count: response.count || 0 
       } 
     };
   } catch (error: any) {
-    console.error('❌ getCustomerOrders error:', error);
+    console.error('❌ getCustomerOrders SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd pobierania zamówień',
@@ -123,25 +146,21 @@ export async function getCustomerOrders(
 }
 
 /**
- * Pobiera szczegóły konkretnego zamówienia (Medusa 2.0)
+ * Pobiera szczegóły konkretnego zamówienia (Medusa 2.0 SDK)
  */
 export async function getOrderDetails(orderId: string): Promise<ApiResponse<Order>> {
   try {
-    console.log('🔄 Fetching order details for:', orderId);
+    console.log('🔄 Fetching order details for:', orderId, 'via SDK');
     
-    const params = new URLSearchParams({
-      expand: 'items,items.variant,shipping_address,billing_address,payments,fulfillments,shipping_methods',
-    });
-    
-    const response = await medusaFetch(`/store/orders/${orderId}?${params}`, {
-      method: 'GET',
-      // Usuwamy Authorization header - Medusa 2.0 używa cookies
+    // SDK automatycznie rozszerza potrzebne pola
+    const response = await sdk.store.order.retrieve(orderId, {
+      fields: '*items,*shipping_address,*billing_address,*payments,*items.variant',
     });
 
-    console.log('✅ Order details fetched successfully');
-    return { data: response.order };
+    console.log('✅ Order details fetched successfully via SDK');
+    return { data: transformStoreOrderToOrder(response.order) };
   } catch (error: any) {
-    console.error('❌ getOrderDetails error:', error);
+    console.error('❌ getOrderDetails SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd pobierania szczegółów zamówienia',
@@ -250,12 +269,9 @@ export const formatPrice = (amount: number, currencyCode: string = 'PLN'): strin
  */
 export async function reorderItems(orderId: string): Promise<ApiResponse<{ cart_id: string }>> {
   try {
-    console.log('🔄 Creating reorder for:', orderId);
+    console.log('🔄 Creating reorder for:', orderId, 'via SDK');
     
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No auth token found');
-    }
+    // SDK automatycznie zarządza autoryzacją
 
     // Najpierw pobierz szczegóły zamówienia
     const orderResponse = await getOrderDetails(orderId);
@@ -265,14 +281,14 @@ export async function reorderItems(orderId: string): Promise<ApiResponse<{ cart_
 
     // Tu będzie logika tworzenia nowego koszyka z produktami z poprzedniego zamówienia
     // Na razie zwracamy mock response
-    console.log('✅ Reorder created successfully');
+    console.log('✅ Reorder created successfully via SDK');
     return { 
       data: { 
         cart_id: 'cart_' + Date.now() 
       } 
     };
   } catch (error: any) {
-    console.error('❌ reorderItems error:', error);
+    console.error('❌ reorderItems SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd podczas tworzenia ponownego zamówienia',

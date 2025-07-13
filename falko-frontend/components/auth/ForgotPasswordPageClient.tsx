@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { requestPasswordReset } from '@/lib/api/auth-new';
+import { requestPasswordReset } from '@/lib/api/auth'; // Zmienione z auth-new na auth
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

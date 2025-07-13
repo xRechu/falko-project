@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
@@ -22,12 +22,13 @@ export async function GET() {
       regionCount: data.regions?.length || 0,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Medusa 2.0 API test failed:', error);
     
     return NextResponse.json({
       status: 'error',
-      message: error.message || 'Failed to connect to Medusa 2.0 API',
+      message: errorMessage || 'Failed to connect to Medusa 2.0 API',
       timestamp: new Date().toISOString(),
     }, { status: 503 });
   }

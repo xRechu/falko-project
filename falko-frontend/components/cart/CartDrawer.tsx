@@ -114,9 +114,35 @@ export function CartDrawer({ children }: CartDrawerProps) {
                         <h4 className="font-medium text-sm truncate">
                           {item.title}
                         </h4>
-                        {item.variant?.title && (
+                        {/* DEBUG: sprawdźmy co mamy w danych */}
+                        {(() => {
+                          console.log('🔍 [CartDrawer] Item data:', {
+                            id: item.id,
+                            title: item.title,
+                            variant_title: item.variant_title,
+                            variant: item.variant,
+                            fullItem: item
+                          });
+                          return null;
+                        })()}
+                        {/* Wyświetl opcje wariantów jako osobne linie */}
+                        {item.variant?.options && item.variant.options.length > 0 ? (
+                          <div className="mt-1 space-y-0.5">
+                            {item.variant.options.map((opt: any, idx: number) => (
+                              <p key={idx} className="text-xs text-muted-foreground">
+                                {opt.option?.title}: {opt.value}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-red-500 mt-1">
+                            DEBUG: Brak options w variant
+                          </p>
+                        )}
+                        {/* Fallback dla variant_title jeśli nie ma options */}
+                        {(!item.variant?.options || item.variant.options.length === 0) && item.variant_title && item.variant_title !== item.title && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            {item.variant.title}
+                            Rozmiar: {item.variant_title}
                           </p>
                         )}
                       </div>
@@ -157,7 +183,7 @@ export function CartDrawer({ children }: CartDrawerProps) {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {formatPrice(item.total)}
+                          {formatPrice(item.total || (item.unit_price * item.quantity))}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatPrice(item.unit_price)} x {item.quantity}

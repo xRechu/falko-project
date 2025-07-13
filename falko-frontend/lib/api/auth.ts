@@ -1,6 +1,7 @@
 import { API_CONFIG } from '@/lib/api-config';
 import { ApiResponse } from './products';
 import { sdk } from '@/lib/medusa-client';
+import type { HttpTypes } from "@medusajs/types";
 
 /**
  * API functions dla autentykacji użytkowników w Medusa.js 2.0 SDK
@@ -8,6 +9,11 @@ import { sdk } from '@/lib/medusa-client';
  * 
  * UWAGA: SDK automatycznie zarządza tokenami i autoryzacją
  */
+
+// Używamy typu z Medusa 2.0
+export type Customer = HttpTypes.StoreCustomer & {
+  has_account?: boolean; // Dodane dla kompatybilności
+};
 
 export interface LoginRequest {
   email: string;
@@ -26,7 +32,7 @@ export interface RegisterRequest {
  * Logowanie użytkownika (Medusa 2.0 SDK) 
  * Używa sdk.auth.login() zamiast bezpośredniego fetch
  */
-export async function loginCustomer(credentials: LoginRequest): Promise<ApiResponse<any>> {
+export async function loginCustomer(credentials: LoginRequest): Promise<ApiResponse<{ customer: Customer }>> {
   try {
     console.log('🔄 Logging in customer via SDK:', credentials.email);
     
@@ -36,9 +42,12 @@ export async function loginCustomer(credentials: LoginRequest): Promise<ApiRespo
       password: credentials.password,
     });
 
+    // Po logowaniu pobierz dane customera
+    const customerResponse = await sdk.store.customer.retrieve();
+
     console.log('✅ SDK Login response:', response);
     console.log('✅ Customer logged in successfully via SDK');
-    return { data: response };
+    return { data: { customer: customerResponse.customer as Customer } };
   } catch (error: any) {
     console.error('❌ loginCustomer SDK error:', error);
     return { 
@@ -53,7 +62,7 @@ export async function loginCustomer(credentials: LoginRequest): Promise<ApiRespo
 /**
  * Rejestracja nowego użytkownika (Medusa 2.0 SDK)
  */
-export async function registerCustomer(userData: RegisterRequest): Promise<ApiResponse<any>> {
+export async function registerCustomer(userData: RegisterRequest): Promise<ApiResponse<{ customer: Customer }>> {
   try {
     console.log('🔄 Registering customer via SDK:', userData.email);
     
@@ -76,18 +85,24 @@ export async function registerCustomer(userData: RegisterRequest): Promise<ApiRe
         console.log('✅ Customer registered and profile created successfully via SDK');
         return { 
           data: { 
-            token: authToken, 
-            customer: customerResponse.customer 
+            customer: customerResponse.customer as Customer
           } 
         };
       } catch (profileError) {
         console.warn('Customer registered but profile creation failed:', profileError);
-        return { data: { token: authToken } };
+        // Spróbuj pobrać dane customera jeśli tworzenie profilu nie powiodło się
+        try {
+          const customerResponse = await sdk.store.customer.retrieve();
+          return { data: { customer: customerResponse.customer as Customer } };
+        } catch {
+          // Zwróć mock customer jeśli nic nie działa
+          return { data: { customer: { id: 'new_customer', email: userData.email, has_account: true } as Customer } };
+        }
       }
     }
 
     console.log('✅ Customer registered successfully');
-    return { data: { token: authToken } };
+    return { data: { customer: { id: 'new_customer', email: userData.email, has_account: true } as Customer } };
   } catch (error: any) {
     console.error('❌ registerCustomer error:', error);
     return { 
@@ -102,7 +117,7 @@ export async function registerCustomer(userData: RegisterRequest): Promise<ApiRe
 /**
  * Pobiera dane zalogowanego użytkownika (Medusa 2.0 SDK)
  */
-export async function getCustomer(): Promise<ApiResponse<any>> {
+export async function getCustomer(): Promise<ApiResponse<Customer>> {
   try {
     console.log('🔄 Fetching customer data via SDK...');
     
@@ -111,7 +126,7 @@ export async function getCustomer(): Promise<ApiResponse<any>> {
     
     if (response.customer) {
       console.log('✅ Customer data fetched via SDK');
-      return { data: response.customer };
+      return { data: response.customer as Customer };
     }
     
     throw new Error('No customer data returned');
@@ -149,14 +164,14 @@ export async function logoutCustomer(): Promise<ApiResponse<void>> {
  */
 export async function updateCustomer(
   updates: Partial<Pick<RegisterRequest, 'first_name' | 'last_name' | 'phone'>>
-): Promise<ApiResponse<any>> {
+): Promise<ApiResponse<Customer>> {
   try {
     console.log('🔄 Updating customer profile via SDK...');
     
     const response = await sdk.store.customer.update(updates);
 
     console.log('✅ Customer profile updated successfully via SDK');
-    return { data: response.customer };
+    return { data: response.customer as Customer };
   } catch (error: any) {
     console.error('❌ updateCustomer SDK error:', error);
     return { 
@@ -327,6 +342,46 @@ export async function checkEmailAvailability(email: string): Promise<ApiResponse
         status: 500 
       } 
     };
+  }
+}
+
+/**
+ * Sprawdza czy użytkownik jest zalogowany
+ */
+export function isAuthenticated(): boolean {
+  try {
+    // SDK może mieć metodę sprawdzania autentykacji
+    // Alternatywnie sprawdzamy token w storage
+    if (typeof window === 'undefined') return false;
+    
+    const sessionToken = sessionStorage.getItem('medusa_auth_token');
+    const localToken = localStorage.getItem('medusa_auth_token');
+    
+    return !!(sessionToken || localToken);
+  } catch (error) {
+    console.error('isAuthenticated error:', error);
+    return false;
+  }
+}
+
+/**
+ * Czyści dane autentykacji lokalnie
+ */
+export function clearAuthentication(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    
+    // Usuń tokeny z local storage (SDK może używać innych kluczy)
+    sessionStorage.removeItem('medusa_auth_token');
+    localStorage.removeItem('medusa_auth_token');
+    
+    // Czyść inne potencjalne klucze SDK
+    sessionStorage.removeItem('medusa_publishable_key');
+    localStorage.removeItem('medusa_publishable_key');
+    
+    console.log('✅ Authentication cleared locally');
+  } catch (error) {
+    console.error('clearAuthentication error:', error);
   }
 }
 

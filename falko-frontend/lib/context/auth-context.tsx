@@ -11,7 +11,7 @@ import {
   type Customer,
   type LoginRequest,
   type RegisterRequest
-} from '@/lib/api/auth-new';
+} from '@/lib/api/auth'; // Zmienione z auth-new na auth
 import { TokenManager } from '@/lib/medusa-client';
 
 /**
@@ -20,7 +20,7 @@ import { TokenManager } from '@/lib/medusa-client';
  */
 
 // Używamy typu Customer z nowego API
-export type { Customer } from '@/lib/api/auth-new';
+export type { Customer } from '@/lib/api/auth'; // Zmienione z auth-new na auth
 
 export interface AuthState {
   user: Customer | null;

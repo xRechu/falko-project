@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { fetchProductsFromAPI } from '@/lib/api/products';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const response = await fetchProductsFromAPI();
     

@@ -253,9 +253,20 @@ export function CartDrawer({ children }: CartDrawerProps) {
                               <h4 className="font-medium text-gray-900 text-sm leading-tight">
                                 {item.title}
                               </h4>
-                              {item.variant?.title && (
+                              {/* Wyświetl opcje wariantów jako osobne linie */}
+                              {item.variant?.options && item.variant.options.length > 0 && (
+                                <div className="mt-1 space-y-0.5">
+                                  {item.variant.options.map((opt: any, idx: number) => (
+                                    <p key={idx} className="text-xs text-gray-500 font-light">
+                                      {opt.option?.title}: {opt.value}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Fallback dla variant_title jeśli nie ma options */}
+                              {(!item.variant?.options || item.variant.options.length === 0) && item.variant_title && item.variant_title !== item.title && (
                                 <p className="text-xs text-gray-500 mt-1 font-light">
-                                  {item.variant.title}
+                                  Rozmiar: {item.variant_title}
                                 </p>
                               )}
                             </div>
@@ -300,10 +311,10 @@ export function CartDrawer({ children }: CartDrawerProps) {
                             
                             <div className="text-right">
                               <p className="text-sm font-semibold text-gray-900">
-                                {formatPrice(item.total)}
+                                {formatPrice(item.total || (item.unit_price * item.quantity))}
                               </p>
                               <p className="text-xs text-gray-500 font-light">
-                                {formatPrice(item.unit_price)} × {item.quantity}
+                                {formatPrice(item.unit_price || 0)} × {item.quantity}
                               </p>
                             </div>
                           </div>
