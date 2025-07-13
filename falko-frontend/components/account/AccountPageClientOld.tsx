@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/auth-context';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPrice } from '@/lib/utils';
 import { 
   User, 
   Package, 
@@ -33,7 +34,7 @@ import { AddressManager } from './AddressManager';
 import { FavoritesManager } from './FavoritesManager';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { useCustomerOrders, useCustomerAddresses, useCustomerProfile } from '@/lib/hooks/use-customer-data';
-import { getOrderStatusLabel, getOrderStatusColor, formatPrice } from '@/lib/api/orders';
+import { getOrderStatusLabel, getOrderStatusColor } from '@/lib/api/orders';
 import { OrderDetailsModal } from './OrderDetailsModal';
 
 /**
@@ -430,7 +431,7 @@ function OrdersTab({
                   </div>
                   <div>
                     <p className="text-gray-600">Wartość:</p>
-                    <p className="font-medium">{order.total.toFixed(2)} zł</p>
+                    <p className="font-medium">{formatPrice(order.total, 'PLN')}</p>
                   </div>
                   {order.tracking_number && (
                     <div>

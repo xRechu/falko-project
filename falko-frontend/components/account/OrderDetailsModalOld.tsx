@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { formatPrice } from '@/lib/utils';
 import { 
   Package, 
   Truck, 
@@ -230,8 +231,8 @@ export function OrderDetailsModal({ isOpen, onClose, order }: OrderDetailsModalP
                     <p className="text-sm text-gray-600">Ilość: {item.quantity}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{item.total.toFixed(2)} zł</p>
-                    <p className="text-sm text-gray-600">{item.unit_price.toFixed(2)} zł/szt.</p>
+                    <p className="font-medium">{formatPrice(item.total, 'PLN')}</p>
+                    <p className="text-sm text-gray-600">{formatPrice(item.unit_price, 'PLN')}/szt.</p>
                   </div>
                 </div>
               ))}
@@ -244,20 +245,20 @@ export function OrderDetailsModal({ isOpen, onClose, order }: OrderDetailsModalP
             <div className="bg-gray-50 p-4 rounded-lg space-y-2">
               <div className="flex justify-between">
                 <span>Produkty:</span>
-                <span>{order.subtotal.toFixed(2)} zł</span>
+                <span>{formatPrice(order.subtotal, 'PLN')}</span>
               </div>
               <div className="flex justify-between">
                 <span>Dostawa:</span>
-                <span>{order.shipping_cost.toFixed(2)} zł</span>
+                <span>{formatPrice(order.shipping_cost, 'PLN')}</span>
               </div>
               <div className="flex justify-between">
                 <span>Podatek:</span>
-                <span>{order.tax_amount.toFixed(2)} zł</span>
+                <span>{formatPrice(order.tax_amount, 'PLN')}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold text-lg">
                 <span>Razem:</span>
-                <span>{order.total.toFixed(2)} zł</span>
+                <span>{formatPrice(order.total, 'PLN')}</span>
               </div>
             </div>
           </div>

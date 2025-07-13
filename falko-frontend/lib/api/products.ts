@@ -1,5 +1,19 @@
 import { ProductPreview, ProductDetail } from "@/lib/types/product";
-import { medusaClient, handleApiError, withRetry } from "@/lib/medusa-client";
+import { sdk } from "@/lib/medusa-client";
+import { serverSdk } from "@/lib/medusa-server-client";
+import type { HttpTypes } from "@medusajs/types";
+
+/**
+ * Wybiera odpowiedni SDK w zależności od środowiska
+ */
+function getSDK() {
+  // Jeśli jesteśmy na serwerze (podczas wykonywania API route), użyj serverSdk
+  if (typeof window === 'undefined') {
+    return serverSdk;
+  }
+  // W przeglądarce użyj normalnego SDK
+  return sdk;
+}
 
 /**
  * API Response wrapper dla lepszego error handling
@@ -15,7 +29,7 @@ export interface ApiResponse<T> {
 }
 
 /**
- * Pobiera listę produktów z Medusa.js API
+ * Pobiera listę produktów z Medusa.js API v2
  * @param options - opcje zapytania (limit, offset, collection_id, etc.)
  * @returns Promise z listą produktów lub błędem
  */
@@ -26,35 +40,41 @@ export async function fetchProductsFromAPI(options: {
   handle?: string;
 } = {}): Promise<ApiResponse<ProductPreview[]>> {
   try {
-    console.log('🔄 Fetching products from Medusa API...');
+    console.log('🔄 Fetching products from Medusa API v2...');
     
-    const response = await withRetry(async () => {
-      return await medusaClient.products.list({
-        limit: options.limit || 20,
-        offset: options.offset || 0,
-        collection_id: options.collection_id ? [options.collection_id] : undefined,
-        handle: options.handle,
-      });
+    const medusaSDK = getSDK();
+    const response = await medusaSDK.store.product.list({
+      limit: options.limit || 20,
+      offset: options.offset || 0,
+      collection_id: options.collection_id ? [options.collection_id] : undefined,
+      handle: options.handle,
+      region_id: 'reg_01JZ0ACKJ42QHCZB0XFKBKNG8N', // Region Polski
+      fields: '+variants.calculated_price',
     });
 
-    // Przekształć dane Medusa na nasze typy
-    const products: ProductPreview[] = response.products.map(product => {
+    // Przekształć dane Medusa v2 na nasze typy
+    const products: ProductPreview[] = response.products.map((product: HttpTypes.StoreProduct) => {
       // Pierwszy wariant dla ceny i ID
       const firstVariant = product.variants?.[0];
       
-      // Znajdź cenę w PLN z pierwszego wariantu
-      const priceInPLN = firstVariant?.prices?.find(price => 
-        price.currency_code?.toLowerCase() === 'pln'
-      );
+      // W Medusa v2 ceny są w calculated_price
+      let priceAmount = 0;
+      let currencyCode = 'PLN';
+      
+      // Sprawdź czy wariant ma cenę w calculated_price
+      if (firstVariant?.calculated_price) {
+        priceAmount = firstVariant.calculated_price.calculated_amount || 0;
+        currencyCode = firstVariant.calculated_price.currency_code || 'PLN';
+      }
 
       return {
         id: product.id || '',
         title: product.title || '',
         handle: product.handle || '',
         thumbnail: product.thumbnail || product.images?.[0]?.url || undefined,
-        price: priceInPLN ? {
-          amount: priceInPLN.amount || 0,
-          currency_code: priceInPLN.currency_code || 'PLN'
+        price: priceAmount > 0 ? {
+          amount: priceAmount,
+          currency_code: currencyCode
         } : undefined,
         collection: product.collection ? {
           id: product.collection.id,
@@ -63,67 +83,78 @@ export async function fetchProductsFromAPI(options: {
         firstVariant: firstVariant && firstVariant.id ? {
           id: firstVariant.id,
           title: firstVariant.title || '',
-          prices: firstVariant.prices?.map(price => ({
-            id: price.id,
-            currency_code: price.currency_code,
-            amount: price.amount,
-            min_quantity: price.min_quantity || undefined,
-            max_quantity: price.max_quantity || undefined
-          }))
+          prices: firstVariant.calculated_price ? [{
+            id: firstVariant.calculated_price.id || '',
+            currency_code: firstVariant.calculated_price.currency_code || 'PLN',
+            amount: firstVariant.calculated_price.calculated_amount || 0,
+          }] : []
         } : undefined,
         // Dodaj informację o ilości wariantów
         variantCount: product.variants?.length || 0
       };
     });
 
-    console.log(`✅ Fetched ${products.length} products from Medusa API`);
+    console.log(`✅ Fetched ${products.length} products from Medusa API v2`);
     return { data: products };
   } catch (error) {
-    const apiError = handleApiError(error);
-    console.error('❌ fetchProductsFromAPI error:', apiError);
-    return { error: apiError };
+    console.error('❌ fetchProductsFromAPI error:', error);
+    return { 
+      error: { 
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        status: 500 
+      } 
+    };
   }
 }
 
 /**
- * Pobiera pojedynczy produkt po ID z Medusa.js API
+ * Pobiera pojedynczy produkt po ID z Medusa.js API v2
  * @param productId - ID produktu
  * @returns Promise z ProductDetail lub błędem
  */
 export async function fetchProductByIdFromAPI(productId: string): Promise<ApiResponse<ProductDetail>> {
   try {
-    console.log(`🔄 Fetching product ${productId} from Medusa API...`);
+    console.log(`🔄 Fetching product ${productId} from Medusa API v2...`);
     
-    const response = await withRetry(async () => {
-      return await medusaClient.products.retrieve(productId);
+    const medusaSDK = getSDK();
+    const response = await medusaSDK.store.product.retrieve(productId, {
+      region_id: 'reg_01JZ0ACKJ42QHCZB0XFKBKNG8N', // Region Polski
+      fields: '+variants.calculated_price',
     });
 
     const productDetail = transformMedusaProductToDetail(response.product);
     
-    console.log(`✅ Fetched product ${productId} from Medusa API`);
+    console.log(`✅ Fetched product ${productId} from Medusa API v2`);
     return { data: productDetail };
   } catch (error) {
-    const apiError = handleApiError(error);
-    console.error(`❌ fetchProductByIdFromAPI error for ${productId}:`, apiError);
-    return { error: apiError };
+    console.error(`❌ fetchProductByIdFromAPI error for ${productId}:`, error);
+    return { 
+      error: { 
+        message: error instanceof Error ? error.message : 'Product not found',
+        status: 404 
+      } 
+    };
   }
 }
 
 /**
- * Pobiera szczegółowy produkt po handle z Medusa.js API
+ * Pobiera szczegółowy produkt po handle z Medusa.js API v2
  * @param handle - handle produktu (SEO-friendly identifier)
  * @returns Promise z ProductDetail lub błędem
  */
 export async function fetchProductByHandleFromAPI(handle: string): Promise<ApiResponse<ProductDetail>> {
   try {
-    console.log(`🔄 Fetching product by handle ${handle} from Medusa API...`);
+    console.log(`🔄 Fetching product by handle ${handle} from Medusa API v2...`);
     
-    const response = await withRetry(async () => {
-      return await medusaClient.products.list({ handle });
+    const medusaSDK = getSDK();
+    const response = await medusaSDK.store.product.list({ 
+      handle,
+      region_id: 'reg_01JZ0ACKJ42QHCZB0XFKBKNG8N', // Region Polski
+      fields: '+variants.calculated_price',
     });
 
     // W Medusa.js produkty są zwracane jako tablica, nawet dla pojedynczego handle
-    const product = response.products?.find((p: any) => p.handle === handle);
+    const product = response.products?.find((p: HttpTypes.StoreProduct) => p.handle === handle);
     
     if (!product) {
       return { error: { message: 'Produkt nie znaleziony', status: 404 } };
@@ -131,21 +162,25 @@ export async function fetchProductByHandleFromAPI(handle: string): Promise<ApiRe
 
     const productDetail = transformMedusaProductToDetail(product);
     
-    console.log(`✅ Fetched product by handle ${handle} from Medusa API`);
+    console.log(`✅ Fetched product by handle ${handle} from Medusa API v2`);
     return { data: productDetail };
   } catch (error) {
-    const apiError = handleApiError(error);
-    console.error(`❌ fetchProductByHandleFromAPI error for ${handle}:`, apiError);
-    return { error: apiError };
+    console.error(`❌ fetchProductByHandleFromAPI error for ${handle}:`, error);
+    return { 
+      error: { 
+        message: error instanceof Error ? error.message : 'Product not found',
+        status: 404 
+      } 
+    };
   }
 }
 
 /**
- * Transformuje pełny obiekt produktu z Medusa.js na ProductDetail dla UI
- * @param medusaProduct - pełny produkt z Medusa API
+ * Transformuje pełny obiekt produktu z Medusa.js v2 na ProductDetail dla UI
+ * @param medusaProduct - pełny produkt z Medusa API v2
  * @returns ProductDetail
  */
-function transformMedusaProductToDetail(medusaProduct: any): ProductDetail {
+function transformMedusaProductToDetail(medusaProduct: HttpTypes.StoreProduct): ProductDetail {
   return {
     id: medusaProduct.id || '',
     title: medusaProduct.title || '',
@@ -167,11 +202,11 @@ function transformMedusaProductToDetail(medusaProduct: any): ProductDetail {
       sku: variant.sku || undefined,
       allow_backorder: variant.allow_backorder || false,
       manage_inventory: variant.manage_inventory || true,
-      prices: variant.prices?.map((price: any) => ({
-        id: price.id || '',
-        currency_code: price.currency_code || 'pln',
-        amount: price.amount || 0,
-      })) || [],
+      prices: variant.calculated_price ? [{
+        id: variant.calculated_price.id || '',
+        currency_code: variant.calculated_price.currency_code || 'pln',
+        amount: variant.calculated_price.calculated_amount || 0,
+      }] : [],
       options: variant.options?.map((optionValue: any) => ({
         id: optionValue.id || '',
         value: optionValue.value || '',

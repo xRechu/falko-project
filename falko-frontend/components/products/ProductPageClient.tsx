@@ -7,7 +7,7 @@ import ImageGallery from "@/components/products/ImageGallery";
 import { ProductDetail } from "@/lib/types/product";
 import { ProductVariantSelector } from "@/components/cart/ProductVariantSelector";
 import { useInventoryContext } from "@/lib/context/inventory-context";
-import { usePricesContext } from "@/lib/context/prices-context";
+import { formatPrice } from "@/lib/utils";
 import { Heart, Share2, Truck, Shield, RotateCcw, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -22,11 +22,14 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const { isVariantAvailable, getVariantQuantity } = useInventoryContext();
-  const { getPriceInCurrency, formatPrice: formatPriceFromContext } = usePricesContext();
 
-  // Oblicz cenę wybranego wariantu z PricesContext
+  // Oblicz cenę wybranego wariantu bezpośrednio z danych wariantu
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
-  const selectedPriceData = selectedVariant ? getPriceInCurrency(selectedVariant.id, 'pln') : null;
+  
+  // Pobierz cenę z wariantu (pierwsza cena w PLN lub pierwsza dostępna)
+  const selectedPriceData = selectedVariant?.prices?.find(price => 
+    price.currency_code.toLowerCase() === 'pln'
+  ) || selectedVariant?.prices?.[0];
 
   // Sprawdź dostępność wybranego wariantu
   const isInStock = selectedVariant ? isVariantAvailable(selectedVariant.id) : false;
@@ -107,10 +110,7 @@ export default function ProductPageClient({ product }: ProductPageClientProps) {
         <div className="flex items-center space-x-3 mb-6">
           {selectedPriceData && (
             <span className="text-3xl font-bold text-foreground">
-              {new Intl.NumberFormat('pl-PL', {
-                style: 'currency',
-                currency: selectedPriceData.currency_code.toUpperCase(),
-              }).format(selectedPriceData.amount / 100)}
+              {formatPrice(selectedPriceData.amount)}
             </span>
           )}
           <div className={`px-3 py-1 rounded-full text-xs font-medium ${

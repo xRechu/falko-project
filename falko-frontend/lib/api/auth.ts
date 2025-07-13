@@ -1,55 +1,12 @@
 import { API_CONFIG } from '@/lib/api-config';
 import { ApiResponse } from './products';
+import { sdk } from '@/lib/medusa-client';
 
 /**
- * Helper funkcja do pobierania tokena z storage
- */
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  
-  // Sprawdź najpierw sessionStorage, potem localStorage
-  const sessionToken = sessionStorage.getItem('auth_token');
-  const localToken = localStorage.getItem('auth_token');
-  
-  console.log('🔍 Auth API - Checking tokens:', {
-    sessionToken: sessionToken ? `${sessionToken.substring(0, 10)}...` : null,
-    localToken: localToken ? `${localToken.substring(0, 10)}...` : null
-  });
-  
-  return sessionToken || localToken;
-};
-
-/**
- * Helper funkcja do zapisywania tokena
- */
-const setAuthToken = (token: string, rememberMe: boolean = false): void => {
-  if (typeof window === 'undefined') return;
-  
-  if (rememberMe) {
-    localStorage.setItem('auth_token', token);
-    sessionStorage.removeItem('auth_token');
-  } else {
-    sessionStorage.setItem('auth_token', token);
-    localStorage.removeItem('auth_token');
-  }
-  
-  console.log('💾 Auth token saved:', rememberMe ? 'localStorage' : 'sessionStorage');
-};
-
-/**
- * Helper funkcja do usuwania tokena
- */
-const clearAuthToken = (): void => {
-  if (typeof window === 'undefined') return;
-  
-  localStorage.removeItem('auth_token');
-  sessionStorage.removeItem('auth_token');
-  console.log('🗑️ Auth tokens cleared');
-};
-
-/**
- * API functions dla autentykacji użytkowników w Medusa.js 2.0
+ * API functions dla autentykacji użytkowników w Medusa.js 2.0 SDK
  * Customer authentication, registration, profile management
+ * 
+ * UWAGA: SDK automatycznie zarządza tokenami i autoryzacją
  */
 
 export interface LoginRequest {
@@ -66,68 +23,24 @@ export interface RegisterRequest {
 }
 
 /**
- * Helper do wysyłania żądań do Medusa 2.0 API
- */
-const medusaFetch = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
-  const url = `${API_CONFIG.MEDUSA_BACKEND_URL}${endpoint}`;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-publishable-api-key': API_CONFIG.MEDUSA_PUBLISHABLE_KEY,
-    ...(options.headers as Record<string, string>),
-  };
-
-  // Dodaj token do nagłówka Authorization jeśli jest dostępny
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  console.log('🌐 Fetching:', url);
-  console.log('📝 Headers:', headers);
-  console.log('🔑 Has token:', !!token);
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Włącz obsługę cookies dla sesji
-  });
-
-  console.log('📨 Response status:', response.status);
-  console.log('🍪 Response headers:', Object.fromEntries(response.headers.entries()));
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    console.error('❌ Response error:', errorData);
-    throw new Error(`HTTP ${response.status}: ${errorData}`);
-  }
-
-  const data = await response.json();
-  console.log('📦 Response data:', data);
-  return data;
-};
-
-/**
- * Logowanie użytkownika (Medusa 2.0) 
- * UWAGA: Ta funkcja nie zapisuje tokena - to robi AuthContext
+ * Logowanie użytkownika (Medusa 2.0 SDK) 
+ * Używa sdk.auth.login() zamiast bezpośredniego fetch
  */
 export async function loginCustomer(credentials: LoginRequest): Promise<ApiResponse<any>> {
   try {
-    console.log('🔄 Logging in customer:', credentials.email);
+    console.log('🔄 Logging in customer via SDK:', credentials.email);
     
-    const response = await medusaFetch('/auth/customer/emailpass', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: credentials.email,
-        password: credentials.password,
-      }),
+    // Używamy SDK - automatycznie zapisuje token i zarządza sesją
+    const response = await sdk.auth.login("customer", "emailpass", {
+      email: credentials.email,
+      password: credentials.password,
     });
 
-    console.log('✅ Login response:', response);
-    console.log('✅ Customer logged in successfully');
+    console.log('✅ SDK Login response:', response);
+    console.log('✅ Customer logged in successfully via SDK');
     return { data: response };
   } catch (error: any) {
-    console.error('❌ loginCustomer error:', error);
+    console.error('❌ loginCustomer SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd logowania',
@@ -138,50 +51,43 @@ export async function loginCustomer(credentials: LoginRequest): Promise<ApiRespo
 }
 
 /**
- * Rejestracja nowego użytkownika (Medusa 2.0)
+ * Rejestracja nowego użytkownika (Medusa 2.0 SDK)
  */
 export async function registerCustomer(userData: RegisterRequest): Promise<ApiResponse<any>> {
   try {
-    console.log('🔄 Registering customer:', userData.email);
+    console.log('🔄 Registering customer via SDK:', userData.email);
     
-    const response = await medusaFetch('/auth/customer/emailpass/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: userData.email,
-        password: userData.password,
-      }),
+    // Rejestracja w systemie auth przez SDK
+    const authToken = await sdk.auth.register("customer", "emailpass", {
+      email: userData.email,
+      password: userData.password,
     });
 
-    // Po udanej rejestracji w systemie auth, utwórz profil klienta
-    if (response.token) {
+    // Po udanej rejestracji, utwórz profil klienta przez SDK
+    if (authToken) {
       try {
-        const customerResponse = await medusaFetch('/store/customers', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${response.token}`,
-          },
-          body: JSON.stringify({
-            first_name: userData.first_name,
-            last_name: userData.last_name,
-            phone: userData.phone,
-          }),
+        const customerResponse = await sdk.store.customer.create({
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          phone: userData.phone,
         });
         
-        console.log('✅ Customer registered and profile created successfully');
+        console.log('✅ Customer registered and profile created successfully via SDK');
         return { 
           data: { 
-            ...response, 
+            token: authToken, 
             customer: customerResponse.customer 
           } 
         };
       } catch (profileError) {
         console.warn('Customer registered but profile creation failed:', profileError);
-        return { data: response };
+        return { data: { token: authToken } };
       }
     }
 
     console.log('✅ Customer registered successfully');
-    return { data: response };
+    return { data: { token: authToken } };
   } catch (error: any) {
     console.error('❌ registerCustomer error:', error);
     return { 
@@ -194,45 +100,23 @@ export async function registerCustomer(userData: RegisterRequest): Promise<ApiRe
 }
 
 /**
- * Pobiera dane zalogowanego użytkownika (Medusa 2.0)
+ * Pobiera dane zalogowanego użytkownika (Medusa 2.0 SDK)
  */
 export async function getCustomer(): Promise<ApiResponse<any>> {
   try {
-    console.log('🔄 Fetching customer data...');
+    console.log('🔄 Fetching customer data via SDK...');
     
-    // Medusa 2.0 z tokenami - spróbuj kilka endpointów
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No auth token available');
+    // SDK automatycznie zarządza tokenami
+    const response = await sdk.store.customer.retrieve();
+    
+    if (response.customer) {
+      console.log('✅ Customer data fetched via SDK');
+      return { data: response.customer };
     }
     
-    // Najpierw spróbuj standardowy endpoint
-    try {
-      const response = await medusaFetch('/store/customers/me');
-      if (response.customer) {
-        console.log('✅ Customer data fetched from /store/customers/me');
-        return { data: response.customer };
-      }
-    } catch (error) {
-      console.log('⚠️ /store/customers/me failed, trying alternatives...');
-    }
-    
-    // Fallback: stwórz podstawowe dane użytkownika na podstawie tokenu
-    console.log('📝 Creating basic user profile from token');
-    const basicUser = {
-      id: 'token_user',
-      email: 'test@test.com', // Idealnie powinniśmy to dekodować z tokenu
-      first_name: 'Test',
-      last_name: 'User',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      has_account: true,
-    };
-    
-    console.log('✅ Basic customer profile created');
-    return { data: basicUser };
+    throw new Error('No customer data returned');
   } catch (error: any) {
-    console.error('❌ getCustomer error:', error);
+    console.error('❌ getCustomer SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd pobierania danych użytkownika',
@@ -243,57 +127,38 @@ export async function getCustomer(): Promise<ApiResponse<any>> {
 }
 
 /**
- * Wylogowanie użytkownika (Medusa 2.0)
+ * Wylogowanie użytkownika (Medusa 2.0 SDK)
  */
 export async function logoutCustomer(): Promise<ApiResponse<void>> {
   try {
-    console.log('🔄 Logging out customer...');
+    console.log('🔄 Logging out customer via SDK...');
     
-    const token = getAuthToken();
-    if (token) {
-      await medusaFetch('/auth/customer/emailpass/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-    }
+    await sdk.auth.logout();
 
-    console.log('✅ Customer logged out successfully');
+    console.log('✅ Customer logged out successfully via SDK');
     return { data: undefined };
   } catch (error: any) {
-    console.error('❌ logoutCustomer error:', error);
+    console.error('❌ logoutCustomer SDK error:', error);
     // Wyloguj lokalnie nawet jeśli API call failed
     return { data: undefined };
   }
 }
 
 /**
- * Aktualizacja profilu użytkownika (Medusa 2.0)
+ * Aktualizacja profilu użytkownika (Medusa 2.0 SDK)
  */
 export async function updateCustomer(
   updates: Partial<Pick<RegisterRequest, 'first_name' | 'last_name' | 'phone'>>
 ): Promise<ApiResponse<any>> {
   try {
-    console.log('🔄 Updating customer profile...');
+    console.log('🔄 Updating customer profile via SDK...');
     
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('No auth token found');
-    }
-    
-    const response = await medusaFetch('/store/customers/me', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(updates),
-    });
+    const response = await sdk.store.customer.update(updates);
 
-    console.log('✅ Customer profile updated successfully');
+    console.log('✅ Customer profile updated successfully via SDK');
     return { data: response.customer };
   } catch (error: any) {
-    console.error('❌ updateCustomer error:', error);
+    console.error('❌ updateCustomer SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd aktualizacji profilu',
@@ -304,21 +169,22 @@ export async function updateCustomer(
 }
 
 /**
- * Reset hasła - wysłanie emaila z linkiem (Medusa 2.0)
+ * Reset hasła - wysłanie emaila z linkiem (Medusa 2.0 SDK)
  */
 export async function requestPasswordReset(email: string): Promise<ApiResponse<void>> {
   try {
     console.log('🔄 Requesting password reset for:', email);
     
-    await medusaFetch('/auth/customer/emailpass/reset-password', {
+    // Używamy bezpośredniego fetch dla reset password - SDK może nie mieć tej metody
+    await sdk.client.fetch('/auth/customer/emailpass/reset-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
 
-    console.log('✅ Password reset email sent successfully');
+    console.log('✅ Password reset email sent successfully via SDK client');
     return { data: undefined };
   } catch (error: any) {
-    console.error('❌ requestPasswordReset error:', error);
+    console.error('❌ requestPasswordReset SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd wysyłania emaila resetującego',
@@ -329,7 +195,7 @@ export async function requestPasswordReset(email: string): Promise<ApiResponse<v
 }
 
 /**
- * Reset hasła z tokenem (Medusa 2.0)
+ * Reset hasła z tokenem (Medusa 2.0 SDK)
  */
 export async function resetPassword(
   email: string, 
@@ -339,7 +205,7 @@ export async function resetPassword(
   try {
     console.log('🔄 Resetting password for:', email);
     
-    const response = await medusaFetch('/auth/customer/emailpass/update', {
+    const response = await sdk.client.fetch('/auth/customer/emailpass/update', {
       method: 'POST',
       body: JSON.stringify({
         email,
@@ -348,10 +214,10 @@ export async function resetPassword(
       }),
     });
 
-    console.log('✅ Password reset successfully');
+    console.log('✅ Password reset successfully via SDK');
     return { data: response };
   } catch (error: any) {
-    console.error('❌ resetPassword error:', error);
+    console.error('❌ resetPassword SDK error:', error);
     return { 
       error: { 
         message: error.message || 'Błąd resetowania hasła',
@@ -381,7 +247,7 @@ export async function checkEmailAvailability(email: string): Promise<ApiResponse
     // Metoda 1: Próba sprawdzenia przez endpoint resetowania hasła
     // To jest bezpieczny sposób sprawdzenia czy użytkownik istnieje
     try {
-      await medusaFetch('/auth/customer/emailpass/reset-password', {
+      await sdk.client.fetch('/auth/customer/emailpass/reset-password', {
         method: 'POST',
         body: JSON.stringify({
           email: email,
@@ -416,7 +282,7 @@ export async function checkEmailAvailability(email: string): Promise<ApiResponse
       // Jeśli dostaniemy "Invalid credentials" - user istnieje
       // Jeśli dostaniemy "User not found" - user nie istnieje
       try {
-        await medusaFetch('/auth/customer/emailpass', {
+        await sdk.client.fetch('/auth/customer/emailpass', {
           method: 'POST',
           body: JSON.stringify({
             email: email,
@@ -467,4 +333,4 @@ export async function checkEmailAvailability(email: string): Promise<ApiResponse
 /**
  * Eksportowane funkcje do zarządzania tokenami
  */
-export { setAuthToken, clearAuthToken, getAuthToken };
+// SDK zarządza tokenami automatycznie - nie eksportujemy starych funkcji token management

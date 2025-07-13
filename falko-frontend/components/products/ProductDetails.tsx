@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { formatPrice } from "@/lib/utils";
 import { 
   Heart, 
   Share2, 
@@ -45,13 +46,6 @@ export const ProductDetails = ({
 }: ProductDetailsProps) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-
-  const formatPrice = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: currencyCode.toUpperCase(),
-    }).format(amount / 100);
-  };
 
   const features = [
     {
@@ -113,7 +107,7 @@ export const ProductDetails = ({
           transition={{ delay: 0.3 }}
         >
           <span className="text-3xl font-bold text-foreground">
-            {formatPrice(price.amount, price.currency_code)}
+            {formatPrice(price.amount)}
           </span>
           <Badge variant={isInStock ? "default" : "destructive"} className="text-xs">
             {isInStock ? "Dostępny" : "Brak w magazynie"}

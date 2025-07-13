@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/lib/context/cart-context';
 import { useInventoryContext } from '@/lib/context/inventory-context';
-import { usePricesContext } from '@/lib/context/prices-context';
+import { formatPrice } from '@/lib/utils';
 import { ShoppingCart, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProductDetail } from '@/lib/types/product';
@@ -25,7 +25,6 @@ export function ProductVariantSelector({
 }: ProductVariantSelectorProps) {
   const { state, addItemToCart, updateItemQuantity, removeItemFromCart } = useCart();
   const { isVariantAvailable, getVariantQuantity } = useInventoryContext();
-  const { getPriceInCurrency, formatPrice: formatPriceFromContext } = usePricesContext();
   
   // Użyj external state jeśli dostępny, inaczej local state
   const [localSelectedVariantId, setLocalSelectedVariantId] = useState<string>(product.variants[0]?.id || '');
@@ -35,7 +34,11 @@ export function ProductVariantSelector({
   const [isLoading, setIsLoading] = useState(false);
 
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
-  const selectedPriceData = selectedVariant ? getPriceInCurrency(selectedVariant.id, 'pln') : null;
+  
+  // Pobierz cenę bezpośrednio z wariantu zamiast z context
+  const selectedPriceData = selectedVariant?.prices?.find(price => 
+    price.currency_code.toLowerCase() === 'pln'
+  ) || selectedVariant?.prices?.[0];
   
   // Znajdź produkt w koszyku
   const cartItem = state.cart?.items.find(item => item.variant_id === selectedVariantId);

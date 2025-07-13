@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/lib/context/cart-context';
-import { ShoppingCart, X, Plus, Minus, Trash2 } from 'lucide-react';
+import { formatPrice } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShoppingCart, X, Plus, Minus, Trash2, Package, CreditCard, ArrowRight, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,13 +23,6 @@ export function CartDrawer({ children }: CartDrawerProps) {
 
   const { cart, isLoading: cartLoading } = state;
   const itemCount = cart?.item_count || 0;
-
-  const formatPrice = (amount: number, currencyCode: string = 'PLN') => {
-    return new Intl.NumberFormat('pl-PL', {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(amount / 100);
-  };
 
   const handleQuantityChange = async (lineItemId: string, newQuantity: number) => {
     if (isLoading) return;
@@ -305,10 +300,10 @@ export function CartDrawer({ children }: CartDrawerProps) {
                             
                             <div className="text-right">
                               <p className="text-sm font-semibold text-gray-900">
-                                {formatPrice(item.total, cart.region?.currency_code)}
+                                {formatPrice(item.total)}
                               </p>
                               <p className="text-xs text-gray-500 font-light">
-                                {formatPrice(item.unit_price, cart.region?.currency_code)} × {item.quantity}
+                                {formatPrice(item.unit_price)} × {item.quantity}
                               </p>
                             </div>
                           </div>
@@ -354,13 +349,13 @@ export function CartDrawer({ children }: CartDrawerProps) {
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600 font-light">Produkty</span>
-                  <span className="font-medium">{formatPrice(cart.subtotal, cart.region?.currency_code)}</span>
+                  <span className="font-medium">{formatPrice(cart.subtotal)}</span>
                 </div>
                 
                 {cart.tax_total > 0 && (
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600 font-light">Podatek</span>
-                    <span className="font-medium">{formatPrice(cart.tax_total, cart.region?.currency_code)}</span>
+                    <span className="font-medium">{formatPrice(cart.tax_total)}</span>
                   </div>
                 )}
                 
@@ -374,7 +369,7 @@ export function CartDrawer({ children }: CartDrawerProps) {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-light text-gray-900">Razem</span>
                   <span className="text-2xl font-light text-gray-900 tracking-tight">
-                    {formatPrice(cart.total, cart.region?.currency_code)}
+                    {formatPrice(cart.total)}
                   </span>
                 </div>
               </div>

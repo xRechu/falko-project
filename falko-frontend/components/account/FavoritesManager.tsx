@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Heart, ShoppingCart, Trash2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatPrice } from '@/lib/utils';
 
 /**
  * Komponent do zarządzania ulubionymi produktami
@@ -40,10 +41,6 @@ export function FavoritesManager({ favorites, onRemoveFromFavorites, onAddToCart
     } finally {
       setRemovingId(null);
     }
-  };
-
-  const formatPrice = (price: number) => {
-    return `${price.toFixed(2)} zł`;
   };
 
   const formatDate = (dateString: string) => {
@@ -137,7 +134,7 @@ export function FavoritesManager({ favorites, onRemoveFromFavorites, onAddToCart
 
               <div className="flex items-center justify-between mb-3">
                 <span className="text-lg font-bold text-gray-900">
-                  {formatPrice(product.price)}
+                  {formatPrice(product.price, 'PLN')}
                 </span>
                 <span className="text-xs text-gray-500">
                   Dodano {formatDate(product.added_at)}

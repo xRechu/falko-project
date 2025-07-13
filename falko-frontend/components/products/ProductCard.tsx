@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ProductPreview } from "@/lib/types/product";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { useInventoryContext } from "@/lib/context/inventory-context";
-import { usePricesContext } from "@/lib/context/prices-context";
+import { formatPrice } from "@/lib/utils";
 
 /**
  * Props dla komponentu ProductCard
@@ -27,7 +27,6 @@ interface ProductCardProps {
  */
 export default function ProductCard({ product, className }: ProductCardProps) {
   const { isVariantAvailable, getVariantQuantity } = useInventoryContext();
-  const { getPriceInCurrency, formatPrice } = usePricesContext();
 
   // Sprawdź czy produkt ma wiele wariantów (więcej niż 1 do wyboru)
   const requiresVariantSelection = (product.variantCount && product.variantCount > 1) || false;
@@ -38,9 +37,10 @@ export default function ProductCard({ product, className }: ProductCardProps) {
   // Pobierz ilość z inventory
   const inventoryQuantity = product.firstVariant ? getVariantQuantity(product.firstVariant.id) : 0;
 
-  // Pobierz cenę z PricesContext
-  const priceData = product.firstVariant ? getPriceInCurrency(product.firstVariant.id, 'pln') : null;
-  const displayPrice = priceData ? formatPrice(priceData) : 'Cena do ustalenia';
+  // Użyj ceny bezpośrednio z produktu (już sformatowanej z API)
+  const displayPrice = product.price 
+    ? formatPrice(product.price.amount)
+    : 'Cena do ustalenia';
 
   // Debug logging
   console.log('ProductCard:', {
@@ -49,7 +49,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
     isInStock,
     inventoryQuantity,
     requiresVariantSelection,
-    priceData,
+    price: product.price,
     displayPrice
   });
 
